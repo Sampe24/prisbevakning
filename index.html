@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Prisbevakning – delad lista</title>
+<!-- Följ-servern (follow-server/ i app-projektet) -->
+<meta name="follow-server" content="https://prisbevakning.prisbevakning-follow-server.workers.dev">
 <style>
   :root { --bg:#FFFBF8; --card:#fff; --text:#3E2723; --muted:#795548; --accent:#6D4C41; --on-accent:#fff; --line:#EFE3DC; }
   @media (prefers-color-scheme: dark) {
@@ -41,20 +43,23 @@
   <div id="bad" class="muted hidden">Länken verkar vara ofullständig. Be avsändaren dela listan igen.</div>
 
   <div id="list" class="card hidden"></div>
-  <p class="muted">Inget av detta skickas till någon server — listan finns bara i själva länken.</p>
+  <p id="privacy" class="muted">Inget av detta skickas till någon server — listan finns bara i själva länken.</p>
 </main>
 <script>
 (function () {
-  var m = location.hash.match(/PB1\.[A-Za-z0-9_-]+/);
   var show = function (id) { document.getElementById(id).classList.remove('hidden'); };
+  var text = function (id, t) { document.getElementById(id).textContent = t; };
+  var m = location.hash.match(/(PB1\.[A-Za-z0-9_-]+|F1\.[A-Za-z0-9]{12,32})/);
   if (!m) { show('bad'); return; }
-  var token = m[0];
+  var token = m[0], follow = token.indexOf('F1.') === 0;
 
   if (/Android/i.test(navigator.userAgent)) {
     var back = location.origin + location.pathname + '?noapp=1#' + token;
-    document.getElementById('open').href = 'intent://import?d=' + token +
+    var btn = document.getElementById('open');
+    btn.href = 'intent://import?d=' + token +
       '#Intent;scheme=prisbevakning;package=se.morningcoffee.pricealert;S.browser_fallback_url=' +
       encodeURIComponent(back) + ';end';
+    if (follow) btn.textContent = 'Följ listan i Prisbevakning';
     show('open');
     if (/[?&]noapp=1/.test(location.search)) show('noapp');
   } else {
@@ -62,29 +67,39 @@
   }
 
   // Visa innehållet (läsbart även utan appen)
+  function render(o, verb) {
+    var alerts = o.a || [];
+    text('title', o.n || 'Delad lista');
+    text('sub', (o.f ? o.f + ' ' + verb + ' ' : '') + alerts.length + (alerts.length === 1 ? ' bevakning' : ' bevakningar'));
+    var box = document.getElementById('list');
+    var types = { stock: 'Kurs', pe_ratio: 'P/E', crypto: 'Krypto' };
+    alerts.forEach(function (a) {
+      var row = document.createElement('div'); row.className = 'row';
+      var name = document.createElement('b'); name.textContent = a.n || a.s;
+      var info = document.createElement('span'); info.className = 'muted';
+      var num = Number(a.x).toLocaleString('sv-SE', { maximumFractionDigits: 4 });
+      var limit = a.t === 'pe_ratio' ? 'P/E ' + num : num + ' ' + (a.c || '');
+      info.textContent = a.s + ' · ' + (types[a.t] || a.t) + ' · ' + (a.u ? 'över ' : 'under ') + limit;
+      row.appendChild(name); row.appendChild(info); box.appendChild(row);
+    });
+    if (alerts.length) show('list');
+  }
+
+  if (follow) {
+    text('privacy', 'Följer du listan hämtar appen den då och då och säger till när något nytt läggs till.');
+    var server = document.querySelector('meta[name="follow-server"]').content;
+    fetch(server + '/v1/feed/' + token.slice(3)).then(function (r) {
+      if (r.status === 404) { text('sub', 'Listan delas inte längre.'); return null; }
+      return r.ok ? r.json() : null;
+    }).then(function (o) { if (o) render(o, 'delar'); }).catch(function () {});
+    return;
+  }
   try {
     var b64 = token.slice(4).replace(/-/g, '+').replace(/_/g, '/');
     while (b64.length % 4) b64 += '=';
     var bytes = Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); });
     var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-    new Response(stream).text().then(function (txt) {
-      var o = JSON.parse(txt), alerts = o.a || [];
-      document.getElementById('title').textContent = o.n || 'Delad lista';
-      document.getElementById('sub').textContent =
-        (o.f ? o.f + ' delar ' : '') + alerts.length + (alerts.length === 1 ? ' bevakning' : ' bevakningar');
-      var box = document.getElementById('list');
-      var types = { stock: 'Kurs', pe_ratio: 'P/E', crypto: 'Krypto' };
-      alerts.forEach(function (a) {
-        var row = document.createElement('div'); row.className = 'row';
-        var name = document.createElement('b'); name.textContent = a.n || a.s;
-        var info = document.createElement('span'); info.className = 'muted';
-        var num = Number(a.x).toLocaleString('sv-SE', { maximumFractionDigits: 4 });
-        var limit = a.t === 'pe_ratio' ? 'P/E ' + num : num + ' ' + (a.c || '');
-        info.textContent = a.s + ' · ' + (types[a.t] || a.t) + ' · ' + (a.u ? 'över ' : 'under ') + limit;
-        row.appendChild(name); row.appendChild(info); box.appendChild(row);
-      });
-      if (alerts.length) show('list');
-    }).catch(function () {});
+    new Response(stream).text().then(function (txt) { render(JSON.parse(txt), 'delar'); }).catch(function () {});
   } catch (e) {}
 })();
 </script>
