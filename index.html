@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Prisbevakning – delad lista</title>
+<style>
+  :root { --bg:#FFFBF8; --card:#fff; --text:#3E2723; --muted:#795548; --accent:#6D4C41; --on-accent:#fff; --line:#EFE3DC; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1E1915; --card:#2A231E; --text:#F3E9E2; --muted:#C7B2A6; --accent:#D7A98C; --on-accent:#2A1A12; --line:#3A302A; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:520px; margin:0 auto; padding:28px 16px 40px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .muted { color:var(--muted); font-size:.92rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:6px 16px; margin:18px 0; }
+  .row { padding:10px 0; border-bottom:1px solid var(--line); }
+  .row:last-child { border-bottom:0; }
+  .row b { display:block; }
+  a.btn { display:block; text-align:center; background:var(--accent); color:var(--on-accent); text-decoration:none;
+          font-weight:600; padding:14px; border-radius:12px; margin:18px 0 10px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <div style="font-size:2.2rem">☕</div>
+  <h1 id="title">Delad lista</h1>
+  <div id="sub" class="muted">Från appen Prisbevakning</div>
+
+  <a id="open" class="btn hidden" href="#">Öppna i Prisbevakning</a>
+  <div id="noapp" class="muted hidden">
+    Det verkar som att appen inte är installerad. Be den som delade listan om installationsfilen
+    (Prisbevakning-….apk), installera den och tryck på länken igen.
+  </div>
+  <div id="other" class="muted hidden">
+    Öppna länken på en Android-telefon som har appen Prisbevakning.
+  </div>
+  <div id="bad" class="muted hidden">Länken verkar vara ofullständig. Be avsändaren dela listan igen.</div>
+
+  <div id="list" class="card hidden"></div>
+  <p class="muted">Inget av detta skickas till någon server — listan finns bara i själva länken.</p>
+</main>
+<script>
+(function () {
+  var m = location.hash.match(/PB1\.[A-Za-z0-9_-]+/);
+  var show = function (id) { document.getElementById(id).classList.remove('hidden'); };
+  if (!m) { show('bad'); return; }
+  var token = m[0];
+
+  if (/Android/i.test(navigator.userAgent)) {
+    var back = location.origin + location.pathname + '?noapp=1#' + token;
+    document.getElementById('open').href = 'intent://import?d=' + token +
+      '#Intent;scheme=prisbevakning;package=se.morningcoffee.pricealert;S.browser_fallback_url=' +
+      encodeURIComponent(back) + ';end';
+    show('open');
+    if (/[?&]noapp=1/.test(location.search)) show('noapp');
+  } else {
+    show('other');
+  }
+
+  // Visa innehållet (läsbart även utan appen)
+  try {
+    var b64 = token.slice(4).replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    var bytes = Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); });
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    new Response(stream).text().then(function (txt) {
+      var o = JSON.parse(txt), alerts = o.a || [];
+      document.getElementById('title').textContent = o.n || 'Delad lista';
+      document.getElementById('sub').textContent =
+        (o.f ? o.f + ' delar ' : '') + alerts.length + (alerts.length === 1 ? ' bevakning' : ' bevakningar');
+      var box = document.getElementById('list');
+      var types = { stock: 'Kurs', pe_ratio: 'P/E', crypto: 'Krypto' };
+      alerts.forEach(function (a) {
+        var row = document.createElement('div'); row.className = 'row';
+        var name = document.createElement('b'); name.textContent = a.n || a.s;
+        var info = document.createElement('span'); info.className = 'muted';
+        var num = Number(a.x).toLocaleString('sv-SE', { maximumFractionDigits: 4 });
+        var limit = a.t === 'pe_ratio' ? 'P/E ' + num : num + ' ' + (a.c || '');
+        info.textContent = a.s + ' · ' + (types[a.t] || a.t) + ' · ' + (a.u ? 'över ' : 'under ') + limit;
+        row.appendChild(name); row.appendChild(info); box.appendChild(row);
+      });
+      if (alerts.length) show('list');
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
