@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Prisbevakning</title>
+<meta name="description" content="Bevaka aktier och krypto: notis när kursen eller ett nyckeltal når din gräns.">
+<meta name="theme-color" content="#fbf6f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1411" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Prisbevakning">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- Servern (follow-server/ i app-projektet) och dess publika VAPID-nyckel för notiser -->
+<meta name="server" content="https://prisbevakning.prisbevakning-follow-server.workers.dev">
+<meta name="vapid" content="BH-s4po0BuJ2CM2Q9SMk1LrMpvyu6b0v4cO5hlsv6ouieOEVHdPWXjsUNal-8DX660IMSCYU5bBuSuw9Tx3Rw6o">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="app.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="top">
+  <a href="#/" class="brand">☕ Prisbevakning</a>
+  <nav class="top-actions">
+    <a href="#/notices" class="icon-btn" aria-label="Senaste notiser" title="Senaste notiser">🔔</a>
+    <a href="#/settings" class="icon-btn" aria-label="Inställningar" title="Inställningar">⚙️</a>
+  </nav>
+</header>
+<main id="view" aria-live="polite"><p class="muted center">Laddar…</p></main>
+<div id="toast" class="toast" role="status" hidden></div>
+<noscript><p class="center">Webbappen behöver JavaScript.</p></noscript>
+</body>
+</html>

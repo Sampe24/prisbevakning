@@ -37,9 +37,11 @@
     Det verkar som att appen inte är installerad. Be den som delade listan om installationsfilen
     (Prisbevakning-….apk), installera den och tryck på länken igen.
   </div>
+  <a id="web" class="btn hidden" href="app/">Öppna i webbappen</a>
   <div id="other" class="muted hidden">
-    Öppna länken på en Android-telefon som har appen Prisbevakning.
+    Webbappen fungerar på iPhone och dator. Har du Android kan du även använda appen Prisbevakning.
   </div>
+  <a id="webalt" class="muted hidden" href="app/">Eller öppna listan i webbappen</a>
   <div id="bad" class="muted hidden">Länken verkar vara ofullständig. Be avsändaren dela listan igen.</div>
 
   <div id="list" class="card hidden"></div>
@@ -52,6 +54,8 @@
   var m = location.hash.match(/(PB1\.[A-Za-z0-9_-]+|F1\.[A-Za-z0-9]{12,32})/);
   if (!m) { show('bad'); return; }
   var token = m[0], follow = token.indexOf('F1.') === 0;
+  // Webbappen tar emot samma länk och erbjuder att kopiera listan
+  document.getElementById('web').href = document.getElementById('webalt').href = 'app/#' + token;
 
   if (/Android/i.test(navigator.userAgent)) {
     var back = location.origin + location.pathname + '?noapp=1#' + token;
@@ -62,7 +66,9 @@
     if (follow) btn.textContent = 'Följ listan i Prisbevakning';
     show('open');
     if (/[?&]noapp=1/.test(location.search)) show('noapp');
+    show('webalt');
   } else {
+    show('web');
     show('other');
   }
 
@@ -72,13 +78,15 @@
     text('title', o.n || 'Delad lista');
     text('sub', (o.f ? o.f + ' ' + verb + ' ' : '') + alerts.length + (alerts.length === 1 ? ' bevakning' : ' bevakningar'));
     var box = document.getElementById('list');
-    var types = { stock: 'Kurs', pe_ratio: 'P/E', crypto: 'Krypto' };
+    var types = { stock: 'Kurs', pe_ratio: 'P/E', crypto: 'Krypto', pb_ratio: 'P/B', div_yield: 'Direktavkastning',
+                  equity_ratio: 'Soliditet', debt_equity: 'Skuldsättningsgrad' };
     alerts.forEach(function (a) {
       var row = document.createElement('div'); row.className = 'row';
       var name = document.createElement('b'); name.textContent = a.n || a.s;
       var info = document.createElement('span'); info.className = 'muted';
       var num = Number(a.x).toLocaleString('sv-SE', { maximumFractionDigits: 4 });
-      var limit = a.t === 'pe_ratio' ? 'P/E ' + num : num + ' ' + (a.c || '');
+      var limit = a.t === 'pe_ratio' ? 'P/E ' + num : a.t === 'pb_ratio' ? 'P/B ' + num
+        : (a.t === 'div_yield' || a.t === 'equity_ratio') ? num + ' %' : num + ' ' + (a.c || '');
       info.textContent = a.s + ' · ' + (types[a.t] || a.t) + ' · ' + (a.u ? 'över ' : 'under ') + limit;
       row.appendChild(name); row.appendChild(info); box.appendChild(row);
     });
