@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prisbevakning</title>
+<meta name="description" content="Android-app som bevakar aktier och krypto: larm på kurs och nyckeltal, insynshandel, delade listor och koppling till Claude och ChatGPT.">
+<meta property="og:title" content="☕ Prisbevakning">
+<meta property="og:description" content="Larm på kurs, P/E, P/B, direktavkastning och soliditet, insynshandel och koppling till Claude och ChatGPT.">
+<meta property="og:image" content="https://sampe24.github.io/prisbevakning/om/img/koppla-ai.jpg">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: en smal läsbana där varje funktion är en rad med text bredvid en telefon; på mobil staplas allt. */
+  :root {
+    --bg: #fbf6f1;          /* appens ljusa yta */
+    --surface: #ffffff;
+    --fg: #2a1f17;
+    --muted: #6e5f54;
+    --line: #e6d9cf;
+    --accent: #7b4a2b;      /* appens bruna knappfärg */
+    --accent-soft: #ffdcc8; /* appens ljusa persika */
+    --up: #2b7a3d;          /* "målet är nått" / köp */
+    --down: #b3261e;        /* sälj */
+    --phone: #1c1511;
+    --font-display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1a1411; --surface: #241c17; --fg: #f3e9e1; --muted: #b9a89b; --line: #3a2e27;
+      --accent: #e6b48e; --accent-soft: #4a3122; --up: #7fd08f; --down: #f2a8a3; --phone: #0d0a08;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1411; --surface: #241c17; --fg: #f3e9e1; --muted: #b9a89b; --line: #3a2e27;
+    --accent: #e6b48e; --accent-soft: #4a3122; --up: #7fd08f; --down: #f2a8a3; --phone: #0d0a08;
+    color-scheme: dark;
+  }
+
+  body { background: var(--bg); color: var(--fg); font: 17px/1.55 var(--font-body); }
+  .wrap {
+    max-width: 1040px; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 32px 64px;
+    display: grid; gap: 72px;
+  }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.12; }
+  h1 { font-size: clamp(2.6rem, 7vw, 4.4rem); font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.6rem, 3.6vw, 2.2rem); font-weight: 600; letter-spacing: -0.01em; }
+  h3 { font-size: 1.35rem; font-weight: 600; }
+  p { margin: 0; max-width: 62ch; }
+  .muted { color: var(--muted); }
+  .eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* Hero */
+  .hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 48px; align-items: center; }
+  .hero-text { display: grid; gap: 20px; min-width: 0; }
+  .lead { font-size: 1.25rem; line-height: 1.5; }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 0.9rem; background: var(--surface); }
+
+  /* Kursbandet: verkliga värden från skärmbilderna */
+  .tape {
+    border-block: 1px solid var(--line); overflow: hidden; white-space: nowrap;
+    font-family: var(--font-mono); font-size: 0.9rem; color: var(--muted);
+  }
+  .tape-inner { display: inline-flex; gap: 40px; padding-block: 10px; animation: tape 38s linear infinite; }
+  .tape b { color: var(--fg); font-weight: 500; }
+  .tape .up { color: var(--up); }
+  @keyframes tape { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .tape-inner { animation: none; } }
+
+  /* Telefonram */
+  .phone {
+    width: 100%; max-width: 290px; justify-self: center;
+    background: var(--phone); border-radius: 34px; padding: 10px;
+    box-shadow: 0 18px 40px -18px rgba(40, 20, 10, 0.45);
+  }
+  .phone img { display: block; width: 100%; height: auto; border-radius: 26px; }
+
+  /* Funktioner */
+  .features { display: grid; gap: 64px; }
+  .feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 290px); gap: 48px; align-items: center; }
+  .feature:nth-child(even) { grid-template-columns: minmax(0, 290px) minmax(0, 1fr); }
+  .feature:nth-child(even) .phone { order: -1; }
+  .feature-text { display: grid; gap: 12px; min-width: 0; }
+  .feature ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; max-width: 58ch; }
+  .new { font-family: var(--font-mono); font-size: 0.72rem; background: var(--accent-soft); color: var(--fg); border-radius: 6px; padding: 2px 6px; vertical-align: middle; margin-left: 6px; }
+
+  /* Diagram */
+  .how { display: grid; gap: 20px; }
+  .diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
+  .diagram svg { display: block; width: 100%; height: auto; }
+  .diagram .tall { display: none; }
+  @media (max-width: 640px) { .diagram .wide { display: none; } .diagram .tall { display: block; } }
+  svg .box { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+  svg .box-main { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+  svg .t { fill: var(--fg); font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+  svg .s { fill: var(--muted); font-family: var(--font-body); font-size: 13px; }
+  svg .lbl { fill: var(--accent); font-family: var(--font-mono); font-size: 12px; }
+  svg .arrow { stroke: var(--accent); stroke-width: 2; fill: none; }
+  svg .head { fill: var(--accent); }
+
+  /* Dela-texten */
+  .pitch { display: grid; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 24px; }
+  .pitch blockquote { margin: 0; font-size: 1.08rem; max-width: 64ch; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 10px 20px; cursor: pointer;
+    background: var(--accent); color: var(--bg);
+  }
+  button:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+  .start { display: grid; gap: 14px; }
+  .start ol { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 64ch; }
+  footer { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 20px; }
+
+  /* Koppla Claude/ChatGPT: bilden ger överblicken, korten de exakta stegen */
+  .connect { display: grid; gap: 20px; }
+  .connect-img { display: block; width: 100%; height: auto; border-radius: 20px; border: 1px solid var(--line); }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .step { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+  .step-n { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--bg); display: grid; place-items: center; font-weight: 700; }
+  .step h3 { font-size: 1.1rem; }
+  .step p, .step li { font-size: 0.95rem; }
+  .step ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+  .path { font-family: var(--font-mono); font-size: 0.82rem; }
+  .url { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--surface); border: 1px dashed var(--accent); border-radius: 12px; padding: 10px 14px; }
+  .url code { font-family: var(--font-mono); font-size: 0.85rem; overflow-wrap: anywhere; flex: 1 1 260px; min-width: 0; }
+  .url button { padding: 6px 14px; font-size: 0.9rem; }
+  @media (max-width: 900px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+
+  @media (max-width: 760px) {
+    .wrap { gap: 56px; padding-block: 24px 48px; }
+    .hero, .feature, .feature:nth-child(even) { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+    .feature:nth-child(even) .phone { order: 0; }
+    .phone { max-width: 260px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="hero-text">
+      <span class="eyebrow">Android-app · version 1.4</span>
+      <h1>☕ Prisbevakning</h1>
+      <p class="lead">Håller koll på aktier och krypto åt dig. Bestäm vad som är ett bra läge att köpa, så får du en notis när det händer. Du behöver inte sitta och uppdatera kurser.</p>
+      <div class="tags">
+        <span class="tag">Kurs</span><span class="tag">P/E</span><span class="tag">P/B</span>
+        <span class="tag">Direktavkastning</span><span class="tag">Soliditet</span><span class="tag">Skuldsättningsgrad</span>
+        <span class="tag">Insynshandel</span><span class="tag">Krypto</span>
+      </div>
+    </div>
+    <div class="phone"><img src="img/oversikt.jpg" alt="Appens startsida med bevakningar, Bitcoin Rainbow och listor" width="540" height="1115"></div>
+  </header>
+
+  <div class="tape" aria-label="Exempel från appen">
+    <div class="tape-inner">
+      <span><b>VOLV-B.ST</b> 309,80 kr · soliditet 27,1 %</span>
+      <span><b>HTRO.ST</b> insynsköp 12 mån <span class="up">▲ 4 köp · 1,6 Mkr</span></span>
+      <span><b>GOOG</b> P/E 14,74 <span class="up">✓ målet nått</span></span>
+      <span><b>META</b> P/B 5,86 · direktavkastning 0,3 %</span>
+      <span><b>BTC</b> Rainbow nivå 1/9 · extremt billigt</span>
+      <span><b>VOLV-B.ST</b> 309,80 kr · soliditet 27,1 %</span>
+      <span><b>HTRO.ST</b> insynsköp 12 mån <span class="up">▲ 4 köp · 1,6 Mkr</span></span>
+      <span><b>GOOG</b> P/E 14,74 <span class="up">✓ målet nått</span></span>
+      <span><b>META</b> P/B 5,86 · direktavkastning 0,3 %</span>
+      <span><b>BTC</b> Rainbow nivå 1/9 · extremt billigt</span>
+    </div>
+  </div>
+
+  <section class="features" aria-label="Funktioner">
+    <article class="feature">
+      <div class="feature-text">
+        <span class="eyebrow">Bevakningar</span>
+        <h2>Ett larm när aktien når ditt pris</h2>
+        <p>Sök upp en aktie eller ett krypto, sätt en gräns och välj om du vill ha notis när värdet går under eller över den. Appen kollar i bakgrunden, som standard var tredje timme, även när den är stängd.</p>
+        <ul>
+          <li>Flera listor, till exempel "Utdelning" och "Krypto", som går att pausa var för sig.</li>
+          <li>Grön stapel och "Målet är nått" när en aktie ligger rätt.</li>
+          <li>Bitcoin Rainbow Chart med en daglig status.</li>
+        </ul>
+      </div>
+      <div class="phone"><img src="img/lista.jpg" alt="Listan Mina bevakningar där flera har nått målet" width="540" height="1115" loading="lazy"></div>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <span class="eyebrow">Nyckeltal <span class="new">1.3</span></span>
+        <h2>Bevaka mer än bara priset</h2>
+        <p>Få en notis när direktavkastningen går över 6 %, när P/B går under 1 eller när soliditeten sjunker under 30 %. Varje nyckeltal förklaras direkt i appen, så du vet vad siffran betyder.</p>
+        <ul>
+          <li>Kurs, P/E, P/B, direktavkastning, soliditet och skuldsättningsgrad.</li>
+          <li>Soliditet och skuldsättning kommer från bolagets senaste rapport och ger en notis per ny rapport.</li>
+        </ul>
+      </div>
+      <div class="phone"><img src="img/nyckeltal.jpg" alt="Ny bevakning på Volvo B med soliditet vald, nu 27,1 procent" width="540" height="1115" loading="lazy"></div>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <span class="eyebrow">Aktiekortet <span class="new">1.3</span></span>
+        <h2>Allt om bolaget på ett ställe</h2>
+        <p>Tryck på en bevakning, eller välj en aktie när du lägger till en, så får du bolagsfakta, nyckeltal och hela balansräkningen: tillgångar, eget kapital, lån, kassa och nettoskuld.</p>
+      </div>
+      <div class="phone"><img src="img/aktiekort.jpg" alt="Aktiekort för Meta med bolagsbeskrivning och nyckeltal" width="540" height="1115" loading="lazy"></div>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <span class="eyebrow">Insynshandel</span>
+        <h2>Se när ledningen köper</h2>
+        <p>För svenska bolag visas varje köp och sälj från Finansinspektionens register de senaste 3, 6 eller 12 månaderna: vem som handlade, vilken roll personen har, antal, pris och summa. När någon handlar får du en notis.</p>
+        <p class="muted">Notiser om nya affärer fungerar även för norska, danska och amerikanska bolag.</p>
+      </div>
+      <div class="phone"><img src="img/insyn.jpg" alt="Insynshandel i Hexatronic: fyra köp senaste 12 månaderna" width="540" height="1115" loading="lazy"></div>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <span class="eyebrow">Dela och följ <span class="new">1.2</span></span>
+        <h2>Följ varandras listor</h2>
+        <p>Dela en lista med en länk eller QR-kod. Den som följer får en notis när du lägger till något, och kan kopiera en aktie eller hela listan till sina egna listor. Bara du kan ändra din lista.</p>
+      </div>
+      <div class="phone"><img src="img/dela.jpg" alt="Rutan för att dela listan Samuels bevakningar" width="540" height="1115" loading="lazy"></div>
+    </article>
+
+    <article class="feature">
+      <div class="feature-text">
+        <span class="eyebrow">Claude och ChatGPT <span class="new">1.4</span></span>
+        <h2>Låt AI:n titta på dina aktier</h2>
+        <p>Logga in med Google och lägg till appen som koppling i Claude eller ChatGPT. Då kan du fråga till exempel <em>"Vilka av mina bevakningar har insynsköp senaste kvartalet?"</em> eller be om <em>"fem utdelningsaktier med soliditet över 40 %"</em>.</p>
+        <ul>
+          <li>AI:n läser dina bevakningar, nyckeltal och insynshandel.</li>
+          <li>Förslag på listor dyker upp i appen märkta 🤖, och du väljer själv vad som kopieras.</li>
+          <li>AI:n kan aldrig ändra eller ta bort något i appen.</li>
+        </ul>
+      </div>
+      <div class="phone"><img src="img/ai.jpg" alt="Inställningar med Konto och AI och knappen Logga in med Google" width="540" height="1115" loading="lazy"></div>
+    </article>
+  </section>
+
+  <section class="connect" aria-labelledby="connect-title" id="koppla-ai">
+    <span class="eyebrow">Steg för steg</span>
+    <h2 id="connect-title">Så kopplar du Claude eller ChatGPT</h2>
+    <p class="muted">Har du aldrig kopplat något till en AI förut? Det tar ett par minuter och görs en gång. Efter det vet AI:n vilka aktier du bevakar.</p>
+    <img class="connect-img" src="img/koppla-ai.jpg" width="1536" height="640" loading="lazy"
+         alt="Fyra steg: logga in med Google i appen, kopiera adressen, lägg till som koppling i Claude eller ChatGPT, fråga om dina aktier">
+    <ol class="steps">
+      <li class="step">
+        <span class="step-n">1</span>
+        <h3>Logga in med Google</h3>
+        <p>I appen: <span class="path">Inställningar → Konto &amp; AI → Logga in med Google</span>.</p>
+        <p class="muted">Bara ditt förnamn sparas, inte din e-post.</p>
+      </li>
+      <li class="step">
+        <span class="step-n">2</span>
+        <h3>Kopiera adressen</h3>
+        <p>Tryck på <strong>Kopiera adressen</strong> under Konto &amp; AI. Det är samma adress för alla, och den finns också i rutan under stegen.</p>
+      </li>
+      <li class="step">
+        <span class="step-n">3</span>
+        <h3>Lägg till som koppling</h3>
+        <p>Enklast i webbläsaren på datorn. Kopplingen syns sedan även i mobilappen.</p>
+        <ul>
+          <li><strong>Claude:</strong> <span class="path">Inställningar → Kopplingar → Lägg till anpassad koppling</span>, klistra in adressen.</li>
+          <li><strong>ChatGPT:</strong> <span class="path">Inställningar → Appar → Avancerat → Utvecklarläge</span>, sedan <span class="path">Skapa</span>, klistra in adressen och välj OAuth.</li>
+        </ul>
+        <p class="muted">En sida från appen frågar om du godkänner. Logga in med samma Google-konto som i appen.</p>
+      </li>
+      <li class="step">
+        <span class="step-n">4</span>
+        <h3>Fråga om dina aktier</h3>
+        <ul>
+          <li><em>"Hur ligger mina bevakningar till?"</em></li>
+          <li><em>"Har någon i ledningen köpt Volvo i år?"</em></li>
+          <li><em>"Gör en lista med fem utdelningsaktier med soliditet över 40 %."</em></li>
+        </ul>
+        <p class="muted">Listor som AI:n föreslår dyker upp i appen märkta 🤖.</p>
+      </li>
+    </ol>
+    <div class="url">
+      <code id="mcp-url">https://prisbevakning.prisbevakning-follow-server.workers.dev/mcp</code>
+      <button type="button" id="copy-url">Kopiera</button>
+    </div>
+  </section>
+
+  <section class="how" aria-labelledby="how-title">
+    <span class="eyebrow">Så hänger det ihop</span>
+    <h2 id="how-title">Telefonen gör jobbet, servern bara förmedlar</h2>
+    <p class="muted">Kurser, nyckeltal och insynshandel hämtar telefonen själv. Servern behövs bara för delade listor och för kopplingen till Claude och ChatGPT.</p>
+    <div class="diagram">
+      <svg class="wide" viewBox="0 0 960 400" role="img" aria-label="Diagram: Yahoo Finance och Finansinspektionen ger data till telefonen; telefonen synkar med servern; vänner och Claude eller ChatGPT når servern.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path class="head" d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+        </defs>
+        <!-- Källor -->
+        <rect class="box" x="20" y="60" width="200" height="84" rx="14"/>
+        <text class="t" x="40" y="96">Yahoo Finance</text>
+        <text class="s" x="40" y="120">kurser, nyckeltal, bolag</text>
+        <rect class="box" x="20" y="250" width="200" height="84" rx="14"/>
+        <text class="t" x="40" y="286">Finansinspektionen</text>
+        <text class="s" x="40" y="310">insynshandel</text>
+        <!-- Telefonen -->
+        <rect class="box-main" x="330" y="110" width="250" height="180" rx="22"/>
+        <text class="t" x="352" y="152">☕ Din telefon</text>
+        <text class="s" x="352" y="178">kollar var 3:e timme</text>
+        <text class="s" x="352" y="200">jämför med dina gränser</text>
+        <text class="s" x="352" y="222">skickar notis när målet nås</text>
+        <text class="s" x="352" y="256">dina bevakningar sparas här</text>
+        <!-- Server -->
+        <rect class="box" x="690" y="160" width="250" height="84" rx="14"/>
+        <text class="t" x="710" y="196">Appens server</text>
+        <text class="s" x="710" y="220">delade listor · konto · MCP</text>
+        <!-- Vänner och AI -->
+        <rect class="box" x="690" y="20" width="250" height="84" rx="14"/>
+        <text class="t" x="710" y="56">👀 Vänner</text>
+        <text class="s" x="710" y="80">följer dina listor</text>
+        <rect class="box" x="690" y="300" width="250" height="84" rx="14"/>
+        <text class="t" x="710" y="336">🤖 Claude / ChatGPT</text>
+        <text class="s" x="710" y="360">läser, föreslår listor</text>
+        <!-- Pilar -->
+        <path class="arrow" d="M220,102 C275,102 280,165 328,165" marker-end="url(#ah)"/>
+        <text class="lbl" x="232" y="94">hämtar</text>
+        <path class="arrow" d="M220,292 C275,292 280,235 328,235" marker-end="url(#ah)"/>
+        <text class="lbl" x="232" y="314">hämtar</text>
+        <path class="arrow" d="M582,190 L688,190" marker-end="url(#ah)" marker-start="url(#ah)"/>
+        <text class="lbl" x="598" y="180">synkar</text>
+        <path class="arrow" d="M815,158 L815,106" marker-end="url(#ah)"/>
+        <path class="arrow" d="M815,298 L815,246" marker-end="url(#ah)" marker-start="url(#ah)"/>
+        <text class="lbl" x="826" y="278">MCP</text>
+      </svg>
+      <svg class="tall" viewBox="0 0 360 640" role="img" aria-label="Diagram: Yahoo Finance och Finansinspektionen ger data till telefonen; telefonen synkar med servern; vänner och Claude eller ChatGPT når servern.">
+        <defs>
+          <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path class="head" d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+        </defs>
+        <rect class="box" x="10" y="10" width="165" height="80" rx="14"/>
+        <text class="t" x="24" y="44">Yahoo Finance</text>
+        <text class="s" x="24" y="68">kurser, nyckeltal</text>
+        <rect class="box" x="185" y="10" width="165" height="80" rx="14"/>
+        <text class="t" x="199" y="44">FI</text>
+        <text class="s" x="199" y="68">insynshandel</text>
+        <path class="arrow" d="M92,92 L150,148" marker-end="url(#ah2)"/>
+        <path class="arrow" d="M268,92 L210,148" marker-end="url(#ah2)"/>
+        <rect class="box-main" x="40" y="152" width="280" height="150" rx="22"/>
+        <text class="t" x="60" y="190">☕ Din telefon</text>
+        <text class="s" x="60" y="216">kollar var 3:e timme</text>
+        <text class="s" x="60" y="238">notis när målet nås</text>
+        <text class="s" x="60" y="268">dina bevakningar sparas här</text>
+        <path class="arrow" d="M180,304 L180,360" marker-end="url(#ah2)" marker-start="url(#ah2)"/>
+        <text class="lbl" x="192" y="338">synkar</text>
+        <rect class="box" x="40" y="364" width="280" height="80" rx="14"/>
+        <text class="t" x="60" y="398">Appens server</text>
+        <text class="s" x="60" y="422">delade listor · konto · MCP</text>
+        <path class="arrow" d="M110,446 L90,500" marker-end="url(#ah2)"/>
+        <path class="arrow" d="M250,446 L270,500" marker-end="url(#ah2)" marker-start="url(#ah2)"/>
+        <text class="lbl" x="278" y="478">MCP</text>
+        <rect class="box" x="10" y="504" width="165" height="96" rx="14"/>
+        <text class="t" x="24" y="538">👀 Vänner</text>
+        <text class="s" x="24" y="562">följer listor</text>
+        <rect class="box" x="185" y="504" width="165" height="96" rx="14"/>
+        <text class="t" x="199" y="538">🤖 Claude</text>
+        <text class="t" x="199" y="560">/ ChatGPT</text>
+        <text class="s" x="199" y="584">föreslår listor</text>
+      </svg>
+    </div>
+  </section>
+
+  <section class="pitch" aria-labelledby="pitch-title">
+    <span class="eyebrow">Skicka till en kompis</span>
+    <h3 id="pitch-title">Kort text att klistra in</h3>
+    <blockquote id="pitch-text">☕ Prisbevakning är en Android-app som håller koll på aktier åt dig. Sätt larm på kurs, P/E, P/B, direktavkastning, soliditet eller skuldsättning och få en notis när målet nås. Tryck på en aktie för bolagsfakta, balansräkning och vilka i ledningen som köpt eller sålt. Dela listor så kan vänner följa dem, och koppla Claude eller ChatGPT så kan de läsa dina bevakningar och föreslå nya listor.</blockquote>
+    <div class="row">
+      <button type="button" id="copy">Kopiera texten</button>
+      <span id="copied" class="muted" role="status"></span>
+    </div>
+  </section>
+
+  <section class="start" aria-labelledby="start-title">
+    <span class="eyebrow">Kom igång</span>
+    <h3 id="start-title">Installera</h3>
+    <ol>
+      <li>Be om APK-filen (appen finns inte i Play Butik) och öppna den på telefonen.</li>
+      <li>Tillåt installation från okända källor när telefonen frågar.</li>
+      <li>Tryck på <strong>Ny bevakning</strong>, sök upp en aktie och välj en gräns.</li>
+      <li>Under Inställningar: stäng av batterioptimering för appen, så kommer kontrollerna i tid.</li>
+    </ol>
+  </section>
+
+  <footer>Kurser och nyckeltal från Yahoo Finance (kan vara fördröjda ca 15 minuter). Insynshandel från Finansinspektionen. Appen ger inga köp- eller säljråd.</footer>
+</div>
+
+<script>
+  // Kopierar texten i ett element; går det inte markeras texten så att man kan kopiera själv.
+  async function copyFrom(el, done) {
+    try {
+      await navigator.clipboard.writeText(el.innerText);
+      done("Kopierad");
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      done("Markerad, kopiera med Ctrl+C eller håll inne");
+    }
+  }
+  document.getElementById("copy").addEventListener("click", () =>
+    copyFrom(document.getElementById("pitch-text"), (msg) => { document.getElementById("copied").textContent = msg; }));
+  const copyUrl = document.getElementById("copy-url");
+  copyUrl.addEventListener("click", () =>
+    copyFrom(document.getElementById("mcp-url"), (msg) => { copyUrl.textContent = msg === "Kopierad" ? "Kopierad ✓" : "Markerad"; }));
+</script>
+</body>
+</html>
